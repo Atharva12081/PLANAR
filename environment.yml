@@ -1,0 +1,19 @@
+name: planar
+channels:
+  - pytorch
+  - conda-forge
+dependencies:
+  - python=3.11.9
+  - pip=24.3
+  - numpy=2.2.4
+  - scipy=1.15.2
+  - scikit-learn=1.6.1
+  - matplotlib=3.10.1
+  - astropy=6.1.2
+  - pyyaml=6.0.2
+  - pip:
+      - hdbscan==0.8.40
+      - umap-learn==0.5.7
+      - pytorch-msssim==1.0.0
+      - torch==2.6.0
+      - -e .
