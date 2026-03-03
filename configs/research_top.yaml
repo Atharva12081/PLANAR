@@ -1,0 +1,65 @@
+project:
+  name: PLANAR
+  seed: 42
+  device: auto
+  log_level: INFO
+  python_version: 3.11.9
+
+paths:
+  data_dir: data/raw
+  artifacts_dir: artifacts
+  reports_dir: reports
+  max_files: 900
+
+autoencoder:
+  enabled: true
+  out_subdir: autoencoder_900
+  crop_size: 512
+  latent_dim: 64
+  epochs: 30
+  batch_size: 8
+  lr: 0.001
+  val_split: 0.2
+  patience: 8
+  use_radial_average: false
+  augment_rot90: false
+  num_workers: 0
+
+clustering:
+  enabled: true
+  out_subdir: clustering_top_900
+  method: hdbscan
+  embedder: pca
+  min_cluster_size: 8
+  n_clusters: 6
+  batch_size: 16
+  use_radial_average: true
+  stability_runs: 7
+  stability_noise_std: 0.01
+
+transit:
+  enabled: true
+  out_subdir: transit
+  samples: 4000
+  num_points: 500
+  epochs: 25
+  batch_size: 64
+  lr: 0.001
+  val_split: 0.2
+  test_split: 0.2
+  patience: 7
+  stress_eval_size: 2000
+  stress_seed: 4242
+
+inference:
+  enabled: true
+  out_subdir: inference
+  method: hdbscan
+  embedder: pca
+  min_cluster_size: 8
+  n_clusters: 6
+  batch_size: 16
+  use_radial_average: true
+
+run:
+  run_report: true
