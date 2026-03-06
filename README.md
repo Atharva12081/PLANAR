@@ -7,7 +7,7 @@ It is designed not merely to cluster images, but to test whether discovered
 structure reflects physical morphology rather than nuisance factors such as
 brightness scaling or orientation.
 
-![CI](https://github.com/your-username/PLANAR/actions/workflows/ci.yml/badge.svg)
+[![CI](https://github.com/Atharva12081/PLANAR/actions/workflows/ci.yml/badge.svg)](https://github.com/Atharva12081/PLANAR/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/Python-3.11.9-blue.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 ![Install](https://img.shields.io/badge/install-pip%20install%20planar-2ea44f)
