@@ -16,7 +16,7 @@ from planar.config import PlanarConfig
 from planar.models.transit_classifier import TransitCNN
 from planar.runtime import ensure_dir, get_device, save_json, set_seed
 from planar.transit_sim import generate_transit_dataset
-from planar.visualization import plot_metric_curves, plot_roc
+from planar.visualization import plot_auc_degradation_curve, plot_metric_curves, plot_roc
 
 LOGGER = logging.getLogger(__name__)
 
@@ -91,6 +91,45 @@ def _predict_scores(model: TransitCNN, loader: DataLoader, device: str) -> tuple
     return np.concatenate(y_true).ravel(), np.concatenate(y_score).ravel()
 
 
+def _split_integrity_summary(
+    train_idx: np.ndarray,
+    val_idx: np.ndarray,
+    test_idx: np.ndarray,
+    n_samples: int,
+) -> dict[str, object]:
+    """Check split disjointness and sample coverage.
+
+    Args:
+        train_idx: Training indices.
+        val_idx: Validation indices.
+        test_idx: Test indices.
+        n_samples: Full dataset size.
+
+    Returns:
+        Integrity summary suitable for JSON reporting.
+    """
+    train_set = set(train_idx.tolist())
+    val_set = set(val_idx.tolist())
+    test_set = set(test_idx.tolist())
+
+    overlap_train_val = len(train_set.intersection(val_set))
+    overlap_train_test = len(train_set.intersection(test_set))
+    overlap_val_test = len(val_set.intersection(test_set))
+
+    covered = len(train_set.union(val_set).union(test_set))
+    leakage_detected = any(v > 0 for v in [overlap_train_val, overlap_train_test, overlap_val_test])
+
+    return {
+        "n_samples": int(n_samples),
+        "covered_samples": int(covered),
+        "coverage_fraction": float(covered / max(n_samples, 1)),
+        "overlap_train_val": int(overlap_train_val),
+        "overlap_train_test": int(overlap_train_test),
+        "overlap_val_test": int(overlap_val_test),
+        "leakage_detected": bool(leakage_detected),
+    }
+
+
 def run_transit_pipeline(config: PlanarConfig) -> TransitArtifacts:
     """Train transit classifier and run stress evaluation.
 
@@ -131,6 +170,7 @@ def run_transit_pipeline(config: PlanarConfig) -> TransitArtifacts:
     train_loader = _to_loader(X[train_idx], y[train_idx], config.transit.batch_size, shuffle=True)
     val_loader = _to_loader(X[val_idx], y[val_idx], config.transit.batch_size, shuffle=False)
     test_loader = _to_loader(X[test_idx], y[test_idx], config.transit.batch_size, shuffle=False)
+    split_integrity = _split_integrity_summary(train_idx, val_idx, test_idx, len(X))
 
     model = TransitCNN().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.transit.lr)
@@ -226,6 +266,22 @@ def run_transit_pipeline(config: PlanarConfig) -> TransitArtifacts:
     stress_auc = float(roc_auc_score(y_stress_true, y_stress_score))
     stress_roc_auc = plot_roc(y_stress_true, y_stress_score, out_dir / "stress_roc_curve.png")
 
+    stress_curve: dict[str, float] = {}
+    for i, regime in enumerate(["mild", "moderate", "severe", "extreme"]):
+        X_reg, y_reg, _ = generate_transit_dataset(
+            n_samples=config.transit.stress_eval_size,
+            num_points=config.transit.num_points,
+            seed=config.transit.stress_seed + 31 * (i + 1),
+            stress_mode=True,
+            stress_profile=regime,
+        )
+        X_reg = _normalize_lightcurves(X_reg)
+        reg_loader = _to_loader(X_reg, y_reg, config.transit.batch_size, shuffle=False)
+        y_reg_true, y_reg_score = _predict_scores(model, reg_loader, device)
+        stress_curve[regime] = float(roc_auc_score(y_reg_true, y_reg_score))
+
+    plot_auc_degradation_curve(stress_curve, out_dir / "stress_auc_degradation.png")
+
     plot_metric_curves(
         history["train_loss"],
         history["val_loss"],
@@ -254,6 +310,8 @@ def run_transit_pipeline(config: PlanarConfig) -> TransitArtifacts:
         "stress_eval_size": int(config.transit.stress_eval_size),
         "stress_test_auc": float(stress_auc),
         "stress_roc_auc": float(stress_roc_auc),
+        "stress_auc_by_regime": stress_curve,
+        "split_integrity": split_integrity,
     }
     summary_path = out_dir / "train_summary.json"
     save_json(summary, summary_path)

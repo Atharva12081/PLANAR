@@ -63,3 +63,12 @@ inference:
 
 run:
   run_report: true
+
+reproducibility:
+  enabled: true
+  out_subdir: reproducibility
+  seeds: [42, 43, 44]
+  run_autoencoder: true
+  run_clustering: true
+  run_transit: true
+  summary_filename: reproducibility_summary.json

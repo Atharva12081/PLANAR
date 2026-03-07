@@ -9,7 +9,7 @@ paths:
   data_dir: data/raw
   artifacts_dir: artifacts
   reports_dir: reports
-  max_files: null
+  max_files: 900
   expected_shape: [600, 600]
 
 autoencoder:
@@ -31,10 +31,11 @@ clustering:
   out_subdir: clustering
   method: hdbscan
   embedder: pca
-  min_cluster_size: 10
+  min_cluster_size: 8
   n_clusters: 6
   batch_size: 16
   use_radial_average: true
+  debias_nuisance_latent: true
   stability_runs: 7
   stability_noise_std: 0.01
 
@@ -53,11 +54,11 @@ transit:
   stress_seed: 4242
 
 inference:
-  enabled: true
+  enabled: false
   out_subdir: inference
   method: hdbscan
   embedder: pca
-  min_cluster_size: 10
+  min_cluster_size: 8
   n_clusters: 6
   batch_size: 16
   use_radial_average: true
@@ -66,10 +67,10 @@ run:
   run_report: true
 
 reproducibility:
-  enabled: false
+  enabled: true
   out_subdir: reproducibility
   seeds: [42, 43, 44]
-  run_autoencoder: true
+  run_autoencoder: false
   run_clustering: true
-  run_transit: true
+  run_transit: false
   summary_filename: reproducibility_summary.json

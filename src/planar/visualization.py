@@ -295,3 +295,34 @@ def plot_bias_scatter(
     plt.tight_layout()
     plt.savefig(save_path, dpi=220)
     plt.close()
+
+
+def plot_auc_degradation_curve(
+    regime_to_auc: dict[str, float],
+    save_path: str | Path,
+) -> None:
+    """Plot AUC degradation across stress regimes.
+
+    Args:
+        regime_to_auc: Mapping from regime label to AUC.
+        save_path: Output image path.
+    """
+    _ensure_parent(save_path)
+    if not regime_to_auc:
+        return
+
+    labels = list(regime_to_auc.keys())
+    auc_values = [float(regime_to_auc[label]) for label in labels]
+    x = np.arange(len(labels))
+
+    plt.figure(figsize=(7.5, 5))
+    plt.plot(x, auc_values, marker="o", linewidth=2)
+    plt.ylim(max(min(auc_values) - 0.08, 0.0), 1.01)
+    plt.xticks(x, labels, rotation=20, ha="right")
+    plt.xlabel("Stress Regime")
+    plt.ylabel("AUC")
+    plt.title("Transit Detection Robustness by Stress Regime")
+    plt.grid(alpha=0.25, linestyle="--", linewidth=0.8)
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=220)
+    plt.close()

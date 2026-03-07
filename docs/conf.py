@@ -1,7 +1,7 @@
 """Minimal Sphinx scaffold for future API documentation."""
 
 project = "PLANAR"
-author = "PLANAR Contributors"
+author = "Atharva Parande"
 extensions = ["sphinx.ext.autodoc", "sphinx.ext.napoleon"]
 napoleon_google_docstring = True
 master_doc = "index"

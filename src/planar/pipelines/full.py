@@ -9,6 +9,7 @@ from planar.config import PlanarConfig
 from planar.pipelines.autoencoder import run_autoencoder_pipeline
 from planar.pipelines.clustering import run_clustering_pipeline
 from planar.pipelines.inference import run_inference_pipeline
+from planar.pipelines.reproducibility import run_reproducibility_pipeline
 from planar.pipelines.reporting import generate_markdown_report
 from planar.pipelines.transit import run_transit_pipeline
 
@@ -27,6 +28,11 @@ def run_full_pipeline(config: PlanarConfig, data_dir_override: str | Path | None
     """
     if data_dir_override is not None:
         config.paths.data_dir = str(data_dir_override)
+
+    if config.reproducibility.enabled:
+        summary_path = run_reproducibility_pipeline(config)
+        LOGGER.info("Reproducibility run complete: %s", summary_path)
+        return summary_path
 
     model_path: Path | None = None
 

@@ -65,6 +65,30 @@ class DiskImageDataset(Dataset[torch.Tensor]):
         return torch.from_numpy(img.copy()).unsqueeze(0)
 
 
+def _split_integrity_summary(train_idx: np.ndarray, val_idx: np.ndarray, n_samples: int) -> dict[str, object]:
+    """Check train/val split disjointness and coverage.
+
+    Args:
+        train_idx: Training indices.
+        val_idx: Validation indices.
+        n_samples: Total number of samples.
+
+    Returns:
+        Integrity summary for reproducibility reports.
+    """
+    train_set = set(train_idx.tolist())
+    val_set = set(val_idx.tolist())
+    overlap = len(train_set.intersection(val_set))
+    covered = len(train_set.union(val_set))
+    return {
+        "n_samples": int(n_samples),
+        "covered_samples": int(covered),
+        "coverage_fraction": float(covered / max(n_samples, 1)),
+        "overlap_train_val": int(overlap),
+        "leakage_detected": bool(overlap > 0),
+    }
+
+
 def run_autoencoder_pipeline(config: PlanarConfig) -> AutoencoderArtifacts:
     """Train the autoencoder and persist checkpoint + diagnostics.
 
@@ -102,6 +126,7 @@ def run_autoencoder_pipeline(config: PlanarConfig) -> AutoencoderArtifacts:
 
     train_images = processed[train_idx]
     val_images = processed[val_idx]
+    split_integrity = _split_integrity_summary(train_idx, val_idx, len(processed))
 
     train_ds = DiskImageDataset(train_images, augment_rot90=config.autoencoder.augment_rot90)
     val_ds = DiskImageDataset(val_images, augment_rot90=False)
@@ -262,6 +287,7 @@ def run_autoencoder_pipeline(config: PlanarConfig) -> AutoencoderArtifacts:
         "val_size": int(len(val_images)),
         "best_val_loss": float(best_val),
         "ms_ssim_available": HAS_MS_SSIM,
+        "split_integrity": split_integrity,
     }
     summary_path = out_dir / "train_summary.json"
     save_json(summary, summary_path)

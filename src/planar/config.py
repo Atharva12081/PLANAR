@@ -61,6 +61,7 @@ class ClusteringConfig:
     n_clusters: int = 6
     batch_size: int = 16
     use_radial_average: bool = False
+    debias_nuisance_latent: bool = False
     stability_runs: int = 5
     stability_noise_std: float = 0.01
 
@@ -105,6 +106,19 @@ class RunConfig:
 
 
 @dataclass
+class ReproducibilityConfig:
+    """Reproducibility sweep controls for research reporting."""
+
+    enabled: bool = False
+    out_subdir: str = "reproducibility"
+    seeds: list[int] = field(default_factory=lambda: [42, 43, 44])
+    run_autoencoder: bool = True
+    run_clustering: bool = True
+    run_transit: bool = True
+    summary_filename: str = "reproducibility_summary.json"
+
+
+@dataclass
 class PlanarConfig:
     """Full PLANAR configuration model."""
 
@@ -115,6 +129,7 @@ class PlanarConfig:
     transit: TransitConfig = field(default_factory=TransitConfig)
     inference: InferenceConfig = field(default_factory=InferenceConfig)
     run: RunConfig = field(default_factory=RunConfig)
+    reproducibility: ReproducibilityConfig = field(default_factory=ReproducibilityConfig)
 
 
 DEFAULT_CONFIG = PlanarConfig()
@@ -184,4 +199,5 @@ def load_config(path: str | Path) -> PlanarConfig:
         transit=TransitConfig(**merged["transit"]),
         inference=InferenceConfig(**merged["inference"]),
         run=RunConfig(**merged["run"]),
+        reproducibility=ReproducibilityConfig(**merged["reproducibility"]),
     )

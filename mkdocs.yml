@@ -1,11 +1,12 @@
 site_name: PLANAR
 site_description: Planetary Latent Analysis & Representation
-repo_url: https://github.com/your-username/PLANAR
+repo_url: https://github.com/Atharva12081/PLANAR
 theme:
   name: material
 nav:
   - Home: docs/index.md
   - Getting Started: docs/getting-started.md
+  - Reproducibility: docs/reproducibility.md
   - Architecture: docs/architecture.md
   - Scientific Notes: docs/scientific-notes.md
   - Development: docs/development.md

@@ -124,6 +124,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional output path for generated markdown report.",
     )
 
+    reproduce_parser = subparsers.add_parser(
+        "reproduce",
+        help="Run deterministic multi-seed reproducibility sweep.",
+        description=(
+            "Execute selected PLANAR stages over configured seeds, then aggregate "
+            "mean/std metrics and negative-control diagnostics."
+        ),
+    )
+    reproduce_parser.add_argument(
+        "--config",
+        type=str,
+        default="configs/default.yaml",
+        help="Path to PLANAR YAML configuration file.",
+    )
+
     return parser
 
 
@@ -170,6 +185,13 @@ def main() -> None:
         from planar.pipelines.reporting import generate_markdown_report
 
         output = generate_markdown_report(config, output_path=Path(args.out) if args.out else None)
+        print(output)
+        return
+
+    if args.command == "reproduce":
+        from planar.pipelines.reproducibility import run_reproducibility_pipeline
+
+        output = run_reproducibility_pipeline(config)
         print(output)
         return
 

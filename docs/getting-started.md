@@ -16,4 +16,5 @@ pip install -r requirements.txt && pip install -e .
 
 ```bash
 planar run --config configs/default.yaml
+planar reproduce --config configs/reproduce.yaml
 ```

@@ -41,6 +41,39 @@ class ClusteringArtifacts:
     summary_path: Path
 
 
+def _debias_latent_vectors(
+    latent_vectors: np.ndarray,
+    brightness: np.ndarray,
+    axis_ratio: np.ndarray,
+) -> tuple[np.ndarray, dict[str, float]]:
+    """Linearly remove nuisance proxy components from latent vectors.
+
+    Args:
+        latent_vectors: Latent vectors `(N, D)`.
+        brightness: Brightness proxy `(N,)`.
+        axis_ratio: Orientation proxy `(N,)`.
+
+    Returns:
+        Debiased latent vectors and variance-retention diagnostics.
+    """
+    b = (brightness - brightness.mean()) / (brightness.std() + 1e-8)
+    a = (axis_ratio - axis_ratio.mean()) / (axis_ratio.std() + 1e-8)
+    design = np.stack([np.ones_like(b), b, a], axis=1).astype(np.float32)
+    beta, _, _, _ = np.linalg.lstsq(design, latent_vectors, rcond=None)
+    nuisance_component = design @ beta
+    debiased = latent_vectors - nuisance_component
+
+    total_var = float(np.var(latent_vectors))
+    remain_var = float(np.var(debiased))
+    retention = remain_var / max(total_var, 1e-8)
+
+    return debiased.astype(np.float32), {
+        "latent_variance_before": total_var,
+        "latent_variance_after": remain_var,
+        "variance_retention": retention,
+    }
+
+
 def _batched_encode(model: ConvAutoencoder, data: np.ndarray, batch_size: int, device: str) -> np.ndarray:
     """Encode images to latent vectors using mini-batches.
 
@@ -131,24 +164,35 @@ def run_clustering_pipeline(
         crop_size=crop_size,
         use_radial_average=config.clustering.use_radial_average,
     )
+    brightness = brightness_proxy(images, crop_size=crop_size)
+    axis_ratio = axis_ratio_proxies(processed)
 
     latent = _batched_encode(model, processed, batch_size=config.clustering.batch_size, device=device)
+    debias_diagnostics: dict[str, float] | None = None
+    latent_for_clustering = latent
+    if config.clustering.debias_nuisance_latent:
+        latent_for_clustering, debias_diagnostics = _debias_latent_vectors(
+            latent_vectors=latent,
+            brightness=brightness,
+            axis_ratio=axis_ratio,
+        )
+
     labels, _, method_used = cluster_latent_space(
-        latent,
+        latent_for_clustering,
         method=config.clustering.method,
         min_cluster_size=config.clustering.min_cluster_size,
         n_clusters=config.clustering.n_clusters,
         random_state=config.project.seed,
     )
     embedding, _, reducer_name = reduce_dim(
-        latent,
+        latent_for_clustering,
         method=config.clustering.embedder,
         random_state=config.project.seed,
     )
 
-    metrics = clustering_quality_scores(latent, labels)
+    metrics = clustering_quality_scores(latent_for_clustering, labels)
     stability = clustering_stability_scores(
-        latent_vectors=latent,
+        latent_vectors=latent_for_clustering,
         method=config.clustering.method,
         min_cluster_size=config.clustering.min_cluster_size,
         n_clusters=config.clustering.n_clusters,
@@ -156,6 +200,30 @@ def run_clustering_pipeline(
         noise_std=config.clustering.stability_noise_std,
         random_state=config.project.seed,
     )
+
+    rng = np.random.default_rng(config.project.seed)
+    shuffled_labels = labels.copy()
+    rng.shuffle(shuffled_labels)
+    shuffled_label_metrics = clustering_quality_scores(latent_for_clustering, shuffled_labels)
+
+    latent_permuted = latent_for_clustering.copy()
+    for j in range(latent_permuted.shape[1]):
+        latent_permuted[:, j] = latent_permuted[rng.permutation(len(latent_permuted)), j]
+    perm_labels, _, perm_method = cluster_latent_space(
+        latent_permuted,
+        method=config.clustering.method,
+        min_cluster_size=config.clustering.min_cluster_size,
+        n_clusters=config.clustering.n_clusters,
+        random_state=config.project.seed + 997,
+    )
+    perm_metrics = clustering_quality_scores(latent_permuted, perm_labels)
+    negative_controls = {
+        "shuffled_labels": shuffled_label_metrics,
+        "permuted_latent_refit": {
+            "method_used": perm_method,
+            "metrics": perm_metrics,
+        },
+    }
 
     np.save(out_dir / "latent_vectors.npy", latent)
     np.save(out_dir / "embedding_2d.npy", embedding)
@@ -175,8 +243,6 @@ def run_clustering_pipeline(
     plot_cluster_means(processed, labels, save_path=out_dir / "cluster_means.png")
     plot_radial_intensity_profiles(processed, labels, save_path=out_dir / "radial_profiles.png")
 
-    brightness = brightness_proxy(images, crop_size=crop_size)
-    axis_ratio = axis_ratio_proxies(processed)
     bias = cluster_bias_summary(labels, brightness=brightness, axis_ratio=axis_ratio)
     interpretation = cluster_interpretation_rows(
         processed_images=processed,
@@ -189,6 +255,7 @@ def run_clustering_pipeline(
     save_json(bias, out_dir / "cluster_bias_summary.json")
     save_json({"clusters": interpretation}, out_dir / "cluster_interpretation.json")
     save_json(stability, out_dir / "cluster_stability_summary.json")
+    save_json(negative_controls, out_dir / "negative_controls.json")
 
     plot_proxy_by_cluster(
         brightness,
@@ -217,9 +284,12 @@ def run_clustering_pipeline(
         "method_requested": config.clustering.method,
         "method_used": method_used,
         "reducer": reducer_name,
+        "debias_nuisance_latent": bool(config.clustering.debias_nuisance_latent),
+        "debias_diagnostics": debias_diagnostics,
         "metrics": metrics,
         "bias_summary": bias,
         "stability_summary": stability,
+        "negative_controls": negative_controls,
     }
     summary_path = out_dir / "clustering_summary.json"
     save_json(summary, summary_path)

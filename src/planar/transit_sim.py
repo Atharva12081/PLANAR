@@ -189,6 +189,7 @@ def generate_transit_dataset(
     num_points: int = 500,
     seed: int = 42,
     stress_mode: bool = False,
+    stress_profile: str = "moderate",
 ) -> tuple[np.ndarray, np.ndarray, list[TransitSampleMeta]]:
     """Generate a binary transit/non-transit dataset.
 
@@ -198,6 +199,7 @@ def generate_transit_dataset(
         num_points: Sequence length.
         seed: Random seed.
         stress_mode: If `True`, use harder noise/variability settings.
+        stress_profile: Stress severity profile (`mild`, `moderate`, `severe`, `extreme`).
 
     Returns:
         Feature matrix `(N, T)`, labels `(N,)`, and per-sample metadata.
@@ -213,12 +215,33 @@ def generate_transit_dataset(
         period = float(rng.uniform(0.8, 1.2))
 
         if stress_mode:
-            inclination = float(rng.uniform(78.0, 90.0))
-            noise_sigma = float(rng.uniform(0.0007, 0.0024))
-            variability_amp = float(rng.uniform(0.0002, 0.0012))
-            red_noise_sigma = float(rng.uniform(0.0001, 0.0006))
+            profile = stress_profile.lower()
+            if profile == "mild":
+                inclination = float(rng.uniform(80.0, 90.0))
+                noise_sigma = float(rng.uniform(0.0007, 0.0018))
+                variability_amp = float(rng.uniform(0.0002, 0.0010))
+                red_noise_sigma = float(rng.uniform(0.0001, 0.0005))
+                missing_cap = 1
+            elif profile == "severe":
+                inclination = float(rng.uniform(76.0, 90.0))
+                noise_sigma = float(rng.uniform(0.0010, 0.0030))
+                variability_amp = float(rng.uniform(0.0004, 0.0016))
+                red_noise_sigma = float(rng.uniform(0.0002, 0.0009))
+                missing_cap = 2
+            elif profile == "extreme":
+                inclination = float(rng.uniform(74.0, 90.0))
+                noise_sigma = float(rng.uniform(0.0012, 0.0036))
+                variability_amp = float(rng.uniform(0.0006, 0.0020))
+                red_noise_sigma = float(rng.uniform(0.0003, 0.0012))
+                missing_cap = 3
+            else:
+                inclination = float(rng.uniform(78.0, 90.0))
+                noise_sigma = float(rng.uniform(0.0007, 0.0024))
+                variability_amp = float(rng.uniform(0.0002, 0.0012))
+                red_noise_sigma = float(rng.uniform(0.0001, 0.0006))
+                missing_cap = 1
             add_missing_segments = True
-            max_missing_segments = 1
+            max_missing_segments = missing_cap
         else:
             inclination = float(rng.uniform(84.0, 90.0))
             noise_sigma = float(rng.uniform(0.0005, 0.0020))

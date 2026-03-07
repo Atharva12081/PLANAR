@@ -62,6 +62,7 @@ def generate_markdown_report(config: PlanarConfig, output_path: str | Path | Non
     ci = _load_json(artifacts_root / config.clustering.out_subdir / "cluster_interpretation.json")
     tr = _load_json(artifacts_root / config.transit.out_subdir / "train_summary.json")
     inf = _load_json(artifacts_root / config.inference.out_subdir / "inference_summary.json")
+    rp = _load_json(artifacts_root / config.reproducibility.out_subdir / config.reproducibility.summary_filename)
 
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
@@ -105,6 +106,25 @@ def generate_markdown_report(config: PlanarConfig, output_path: str | Path | Non
     lines.append("## Inference")
     lines.append(f"- Loaded images: {_fmt(inf.get('num_loaded'))}")
     lines.append(f"- Method: {_fmt(inf.get('method_used'))}")
+
+    agg = rp.get("aggregate") if isinstance(rp, dict) else None
+    if isinstance(agg, dict):
+        lines.append("")
+        lines.append("## Reproducibility Sweep")
+
+        def _ms(key: str) -> str:
+            stat = agg.get(key, {})
+            if not isinstance(stat, dict):
+                return "n/a"
+            return f"{_fmt(stat.get('mean'))} ± {_fmt(stat.get('std'))} (n={_fmt(stat.get('n'))})"
+
+        lines.append(f"- Seeds: {rp.get('seeds', [])}")
+        lines.append(f"- Silhouette: {_ms('clustering_silhouette')}")
+        lines.append(f"- Stability ARI: {_ms('clustering_ari_mean')}")
+        lines.append(f"- Orientation eta^2: {_ms('orientation_eta_squared')}")
+        lines.append(f"- Transit test AUC: {_ms('transit_test_auc')}")
+        lines.append(f"- Transit stress AUC: {_ms('transit_stress_auc')}")
+        lines.append(f"- NegControl (shuffled labels): {_ms('negative_control_silhouette_shuffled_labels')}")
 
     reports_dir = ensure_dir(config.paths.reports_dir)
     out_path = Path(output_path) if output_path is not None else reports_dir / "PLANAR_REPORT.md"
