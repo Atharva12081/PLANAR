@@ -2,6 +2,9 @@
 
 Generated: 2026-03-12 22:28 UTC
 
+Artifacts + pretrained weights:
+https://drive.google.com/drive/u/0/folders/1x3jiMVj2Iyeu9quEI53SVg6-EF7tMFqx
+
 ## Autoencoder
 - Train size: 120
 - Val size: 30

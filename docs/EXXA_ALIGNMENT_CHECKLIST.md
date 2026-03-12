@@ -59,6 +59,7 @@ Checked all embedded links on 2026-03-03.
 
 - Some official links are authentication/bot protected (Google Form/Drive, IOP). This is external and not a code conflict.
 - If evaluators require pretrained weights and hosted notebook links, include those explicitly in submission materials.
+  Hosted artifacts (Drive): https://drive.google.com/drive/u/0/folders/1x3jiMVj2Iyeu9quEI53SVg6-EF7tMFqx
 
 ## Final Assessment
 
