@@ -43,9 +43,13 @@ def _load_package_shim() -> None:
     spec.loader.exec_module(module)
 
 
-if __name__ != "__main__":
-    _load_package_shim()
-else:
-    from planar.cli import main
+_load_package_shim()
 
-    main()
+if __name__ == "__main__":
+    spec = importlib.util.spec_from_file_location("planar.cli", PKG / "cli.py")
+    if spec is None or spec.loader is None:
+        raise RuntimeError("Unable to load CLI module for planar.")
+    cli_mod = importlib.util.module_from_spec(spec)
+    sys.modules["planar.cli"] = cli_mod
+    spec.loader.exec_module(cli_mod)
+    cli_mod.main()
