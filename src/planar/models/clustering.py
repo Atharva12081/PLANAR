@@ -85,7 +85,7 @@ def cluster_latent_space(
 
                 clusterer = KMeans(n_clusters=n_clusters, random_state=random_state, n_init="auto")
                 labels = clusterer.fit_predict(latent_vectors)
-                return labels, clusterer, "hdbscan_all_noise_fallback_kmeans"
+                return labels, clusterer, "dbscan_fallback"
             return labels, clusterer, "hdbscan"
         except Exception:
             from sklearn.cluster import DBSCAN
@@ -97,7 +97,7 @@ def cluster_latent_space(
 
                 clusterer = KMeans(n_clusters=n_clusters, random_state=random_state, n_init="auto")
                 labels = clusterer.fit_predict(latent_vectors)
-                return labels, clusterer, "dbscan_all_noise_fallback_kmeans"
+                return labels, clusterer, "dbscan_fallback"
             return labels, clusterer, "dbscan_fallback"
 
     if method == "kmeans":
