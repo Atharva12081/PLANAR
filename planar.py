@@ -1,13 +1,20 @@
-"""Repository-local runner for `python -m planar` without installation."""
+"""Repository-local runner for `python -m planar` without installation.
+
+This file also acts as a safe package shim so imports like
+`from planar.models import ...` work in test environments where the repo
+root is on `sys.path` (which would otherwise shadow the real package).
+"""
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "src"
+PKG = SRC / "planar"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
@@ -21,7 +28,22 @@ os.environ.setdefault("KMP_DISABLE_MMAP", "1")
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 os.environ.setdefault("KMP_USE_SHM", "0")
 
-from planar.cli import main
+def _load_package_shim() -> None:
+    """Load the real package __init__ into this module namespace."""
+    if not PKG.exists():
+        return
+    spec = importlib.util.spec_from_file_location(__name__, PKG / "__init__.py")
+    if spec is None or spec.loader is None:
+        return
+    # Mark this module as a package.
+    spec.submodule_search_locations = [str(PKG)]
+    module = sys.modules[__name__]
+    spec.loader.exec_module(module)
 
-if __name__ == "__main__":
+
+if __name__ != "__main__":
+    _load_package_shim()
+else:
+    from planar.cli import main
+
     main()
