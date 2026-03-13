@@ -35,9 +35,11 @@ def _load_package_shim() -> None:
     spec = importlib.util.spec_from_file_location(__name__, PKG / "__init__.py")
     if spec is None or spec.loader is None:
         return
-    # Mark this module as a package.
-    spec.submodule_search_locations = [str(PKG)]
     module = sys.modules[__name__]
+    # Mark this module as a package so submodules can be imported.
+    module.__package__ = __name__
+    module.__path__ = [str(PKG)]
+    spec.submodule_search_locations = [str(PKG)]
     spec.loader.exec_module(module)
 
 
