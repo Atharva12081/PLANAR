@@ -163,41 +163,21 @@ def run_autoencoder_pipeline(config: PlanarConfig) -> AutoencoderArtifacts:
     }
 
     checkpoint_path = out_dir / "autoencoder.pth"
+    used_pretrained = bool(config.autoencoder.use_pretrained and checkpoint_path.exists())
 
-    for epoch in range(1, config.autoencoder.epochs + 1):
-        model.train()
-        train_loss = 0.0
-        train_mse = 0.0
-        train_ssim = 0.0
-
-        for batch in train_loader:
-            batch = batch.to(device)
-
-            optimizer.zero_grad()
-            recon = model(batch)
-            loss, mse, ssim_loss = reconstruction_components(recon, batch)
-            loss.backward()
-            optimizer.step()
-
-            train_loss += float(loss.item())
-            train_mse += float(mse.item())
-            train_ssim += float(ssim_loss.item())
-
-        train_loss /= max(len(train_loader), 1)
-        train_mse /= max(len(train_loader), 1)
-        train_ssim /= max(len(train_loader), 1)
-
+    if used_pretrained:
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        model.load_state_dict(checkpoint["state_dict"])
         model.eval()
+
         val_loss = 0.0
         val_mse = 0.0
         val_ssim = 0.0
-
         with torch.no_grad():
             for batch in val_loader:
                 batch = batch.to(device)
                 recon = model(batch)
                 loss, mse, ssim_loss = reconstruction_components(recon, batch)
-
                 val_loss += float(loss.item())
                 val_mse += float(mse.item())
                 val_ssim += float(ssim_loss.item())
@@ -206,43 +186,95 @@ def run_autoencoder_pipeline(config: PlanarConfig) -> AutoencoderArtifacts:
         val_mse /= max(len(val_loader), 1)
         val_ssim /= max(len(val_loader), 1)
 
-        history["train_loss"].append(train_loss)
+        history["train_loss"].append(val_loss)
         history["val_loss"].append(val_loss)
-        history["train_mse"].append(train_mse)
+        history["train_mse"].append(val_mse)
         history["val_mse"].append(val_mse)
-        history["train_ssim_loss"].append(train_ssim)
+        history["train_ssim_loss"].append(val_ssim)
         history["val_ssim_loss"].append(val_ssim)
 
-        LOGGER.info(
-            "AE epoch=%03d train_loss=%.5f val_loss=%.5f train_mse=%.5f val_mse=%.5f",
-            epoch,
-            train_loss,
-            val_loss,
-            train_mse,
-            val_mse,
-        )
+        best_val = val_loss
+        LOGGER.info("AE loaded pretrained checkpoint; val_loss=%.5f val_mse=%.5f", val_loss, val_mse)
+    else:
+        for epoch in range(1, config.autoencoder.epochs + 1):
+            model.train()
+            train_loss = 0.0
+            train_mse = 0.0
+            train_ssim = 0.0
 
-        if val_loss < best_val:
-            best_val = val_loss
-            wait = 0
-            torch.save(
-                {
-                    "state_dict": model.state_dict(),
-                    "latent_dim": config.autoencoder.latent_dim,
-                    "crop_size": config.autoencoder.crop_size,
-                    "seed": config.project.seed,
-                },
-                checkpoint_path,
+            for batch in train_loader:
+                batch = batch.to(device)
+
+                optimizer.zero_grad()
+                recon = model(batch)
+                loss, mse, ssim_loss = reconstruction_components(recon, batch)
+                loss.backward()
+                optimizer.step()
+
+                train_loss += float(loss.item())
+                train_mse += float(mse.item())
+                train_ssim += float(ssim_loss.item())
+
+            train_loss /= max(len(train_loader), 1)
+            train_mse /= max(len(train_loader), 1)
+            train_ssim /= max(len(train_loader), 1)
+
+            model.eval()
+            val_loss = 0.0
+            val_mse = 0.0
+            val_ssim = 0.0
+
+            with torch.no_grad():
+                for batch in val_loader:
+                    batch = batch.to(device)
+                    recon = model(batch)
+                    loss, mse, ssim_loss = reconstruction_components(recon, batch)
+
+                    val_loss += float(loss.item())
+                    val_mse += float(mse.item())
+                    val_ssim += float(ssim_loss.item())
+
+            val_loss /= max(len(val_loader), 1)
+            val_mse /= max(len(val_loader), 1)
+            val_ssim /= max(len(val_loader), 1)
+
+            history["train_loss"].append(train_loss)
+            history["val_loss"].append(val_loss)
+            history["train_mse"].append(train_mse)
+            history["val_mse"].append(val_mse)
+            history["train_ssim_loss"].append(train_ssim)
+            history["val_ssim_loss"].append(val_ssim)
+
+            LOGGER.info(
+                "AE epoch=%03d train_loss=%.5f val_loss=%.5f train_mse=%.5f val_mse=%.5f",
+                epoch,
+                train_loss,
+                val_loss,
+                train_mse,
+                val_mse,
             )
-        else:
-            wait += 1
-            if wait >= config.autoencoder.patience:
-                LOGGER.info("AE early stopping at epoch %d", epoch)
-                break
 
-    checkpoint = torch.load(checkpoint_path, map_location=device)
-    model.load_state_dict(checkpoint["state_dict"])
-    model.eval()
+            if val_loss < best_val:
+                best_val = val_loss
+                wait = 0
+                torch.save(
+                    {
+                        "state_dict": model.state_dict(),
+                        "latent_dim": config.autoencoder.latent_dim,
+                        "crop_size": config.autoencoder.crop_size,
+                        "seed": config.project.seed,
+                    },
+                    checkpoint_path,
+                )
+            else:
+                wait += 1
+                if wait >= config.autoencoder.patience:
+                    LOGGER.info("AE early stopping at epoch %d", epoch)
+                    break
+
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        model.load_state_dict(checkpoint["state_dict"])
+        model.eval()
 
     with torch.no_grad():
         sample = torch.from_numpy(val_images[:16]).to(device).unsqueeze(1)
@@ -288,6 +320,7 @@ def run_autoencoder_pipeline(config: PlanarConfig) -> AutoencoderArtifacts:
         "best_val_loss": float(best_val),
         "ms_ssim_available": HAS_MS_SSIM,
         "split_integrity": split_integrity,
+        "used_pretrained": used_pretrained,
     }
     summary_path = out_dir / "train_summary.json"
     save_json(summary, summary_path)

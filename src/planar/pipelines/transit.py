@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from planar.config import PlanarConfig
 from planar.models.transit_classifier import TransitCNN
+from planar.lightcurve_loader import load_observational_lightcurves
 from planar.runtime import ensure_dir, get_device, save_json, set_seed
 from planar.transit_sim import generate_transit_dataset
 from planar.visualization import plot_auc_degradation_curve, plot_metric_curves, plot_roc
@@ -172,83 +173,83 @@ def run_transit_pipeline(config: PlanarConfig) -> TransitArtifacts:
     test_loader = _to_loader(X[test_idx], y[test_idx], config.transit.batch_size, shuffle=False)
     split_integrity = _split_integrity_summary(train_idx, val_idx, test_idx, len(X))
 
+    checkpoint_path = out_dir / "transit_classifier.pth"
     model = TransitCNN().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.transit.lr)
-    criterion = torch.nn.BCEWithLogitsLoss()
-
-    best_auc = -1.0
-    wait = 0
-
     history: dict[str, list[float]] = {
         "train_loss": [],
         "val_loss": [],
         "val_auc": [],
     }
 
-    checkpoint_path = out_dir / "transit_classifier.pth"
+    if config.transit.use_pretrained and checkpoint_path.exists():
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        model.load_state_dict(checkpoint["state_dict"])
+        best_auc = None
+    else:
+        optimizer = torch.optim.Adam(model.parameters(), lr=config.transit.lr)
+        criterion = torch.nn.BCEWithLogitsLoss()
+        best_auc = -1.0
+        wait = 0
 
-    for epoch in range(1, config.transit.epochs + 1):
-        model.train()
-        train_loss = 0.0
+        for epoch in range(1, config.transit.epochs + 1):
+            model.train()
+            train_loss = 0.0
 
-        for xb, yb in train_loader:
-            xb = xb.to(device)
-            yb = yb.to(device)
-
-            optimizer.zero_grad()
-            logits = model(xb)
-            loss = criterion(logits, yb)
-            loss.backward()
-            optimizer.step()
-            train_loss += float(loss.item())
-
-        train_loss /= max(len(train_loader), 1)
-
-        model.eval()
-        val_loss = 0.0
-        with torch.no_grad():
-            for xb, yb in val_loader:
+            for xb, yb in train_loader:
                 xb = xb.to(device)
                 yb = yb.to(device)
+
+                optimizer.zero_grad()
                 logits = model(xb)
                 loss = criterion(logits, yb)
-                val_loss += float(loss.item())
+                loss.backward()
+                optimizer.step()
+                train_loss += float(loss.item())
 
-        val_loss /= max(len(val_loader), 1)
-        y_val_true, y_val_score = _predict_scores(model, val_loader, device)
-        val_auc = float(roc_auc_score(y_val_true, y_val_score))
+            train_loss /= max(len(train_loader), 1)
 
-        history["train_loss"].append(train_loss)
-        history["val_loss"].append(val_loss)
-        history["val_auc"].append(val_auc)
+            model.eval()
+            val_loss = 0.0
+            with torch.no_grad():
+                for xb, yb in val_loader:
+                    xb = xb.to(device)
+                    yb = yb.to(device)
+                    logits = model(xb)
+                    loss = criterion(logits, yb)
+                    val_loss += float(loss.item())
 
-        LOGGER.info(
-            "Transit epoch=%03d train_loss=%.5f val_loss=%.5f val_auc=%.5f",
-            epoch,
-            train_loss,
-            val_loss,
-            val_auc,
-        )
+            val_loss /= max(len(val_loader), 1)
+            y_val_true, y_val_score = _predict_scores(model, val_loader, device)
+            val_auc = float(roc_auc_score(y_val_true, y_val_score))
 
-        if val_auc > best_auc:
-            best_auc = val_auc
-            wait = 0
-            torch.save(
-                {
-                    "state_dict": model.state_dict(),
-                    "num_points": config.transit.num_points,
-                    "seed": config.project.seed,
-                },
-                checkpoint_path,
+            history["train_loss"].append(train_loss)
+            history["val_loss"].append(val_loss)
+            history["val_auc"].append(val_auc)
+
+            LOGGER.info(
+                "Transit epoch=%03d train_loss=%.5f val_loss=%.5f val_auc=%.5f",
+                epoch,
+                train_loss,
+                val_loss,
+                val_auc,
             )
-        else:
-            wait += 1
-            if wait >= config.transit.patience:
-                LOGGER.info("Transit early stopping at epoch %d", epoch)
-                break
 
-    checkpoint = torch.load(checkpoint_path, map_location=device)
-    model.load_state_dict(checkpoint["state_dict"])
+            if val_auc > best_auc:
+                best_auc = val_auc
+                wait = 0
+                torch.save(
+                    {
+                        "state_dict": model.state_dict(),
+                        "num_points": config.transit.num_points,
+                        "seed": config.project.seed,
+                    },
+                    checkpoint_path,
+                )
+            else:
+                wait += 1
+                if wait >= config.transit.patience:
+                    LOGGER.info("Transit early stopping at epoch %d", epoch)
+                    break
 
     y_test_true, y_test_score = _predict_scores(model, test_loader, device)
     test_auc = float(roc_auc_score(y_test_true, y_test_score))
@@ -282,21 +283,22 @@ def run_transit_pipeline(config: PlanarConfig) -> TransitArtifacts:
 
     plot_auc_degradation_curve(stress_curve, out_dir / "stress_auc_degradation.png")
 
-    plot_metric_curves(
-        history["train_loss"],
-        history["val_loss"],
-        title="Transit Classifier BCE Loss",
-        ylabel="Loss",
-        save_path=out_dir / "loss_curve.png",
-    )
+    if history["train_loss"]:
+        plot_metric_curves(
+            history["train_loss"],
+            history["val_loss"],
+            title="Transit Classifier BCE Loss",
+            ylabel="Loss",
+            save_path=out_dir / "loss_curve.png",
+        )
 
-    plot_metric_curves(
-        history["val_auc"],
-        history["val_auc"],
-        title="Transit Classifier Validation AUC",
-        ylabel="AUC",
-        save_path=out_dir / "auc_curve.png",
-    )
+        plot_metric_curves(
+            history["val_auc"],
+            history["val_auc"],
+            title="Transit Classifier Validation AUC",
+            ylabel="AUC",
+            save_path=out_dir / "auc_curve.png",
+        )
 
     summary = {
         "samples": int(config.transit.samples),
@@ -304,7 +306,7 @@ def run_transit_pipeline(config: PlanarConfig) -> TransitArtifacts:
         "train_size": int(len(train_idx)),
         "val_size": int(len(val_idx)),
         "test_size": int(len(test_idx)),
-        "best_val_auc": float(best_auc),
+        "best_val_auc": None if best_auc is None else float(best_auc),
         "test_auc": float(test_auc),
         "roc_auc": float(roc_auc),
         "stress_eval_size": int(config.transit.stress_eval_size),
@@ -312,9 +314,39 @@ def run_transit_pipeline(config: PlanarConfig) -> TransitArtifacts:
         "stress_roc_auc": float(stress_roc_auc),
         "stress_auc_by_regime": stress_curve,
         "split_integrity": split_integrity,
+        "used_pretrained": bool(config.transit.use_pretrained and checkpoint_path.exists()),
     }
+
+    if config.transit.observational_dir:
+        X_obs, y_obs, skipped_obs = load_observational_lightcurves(
+            config.transit.observational_dir,
+            num_points=config.transit.num_points,
+        )
+        if len(X_obs) == 0:
+            LOGGER.warning("No observational light curves loaded from %s", config.transit.observational_dir)
+        else:
+            X_obs = _normalize_lightcurves(X_obs)
+            obs_loader = _to_loader(X_obs, y_obs if y_obs is not None else np.zeros(len(X_obs)), config.transit.batch_size, shuffle=False)
+            y_obs_true, y_obs_score = _predict_scores(model, obs_loader, device)
+            if y_obs is None and config.transit.observational_require_labels:
+                raise RuntimeError("Observational light curves loaded without labels, but labels are required.")
+            obs_auc = float(roc_auc_score(y_obs_true, y_obs_score)) if y_obs is not None else None
+            obs_roc_auc = plot_roc(y_obs_true, y_obs_score, out_dir / "observational_roc_curve.png") if y_obs is not None else None
+            summary.update(
+                {
+                    "observational_dir": config.transit.observational_dir,
+                    "observational_loaded": int(len(X_obs)),
+                    "observational_skipped": skipped_obs[:10],
+                    "observational_auc": obs_auc,
+                    "observational_roc_auc": obs_roc_auc,
+                }
+            )
     summary_path = out_dir / "train_summary.json"
     save_json(summary, summary_path)
+
+    (out_dir / "auc_score.txt").write_text(f"{test_auc:.6f}\n", encoding="utf-8")
+    if summary.get("observational_auc") is not None:
+        (out_dir / "observational_auc_score.txt").write_text(f"{summary['observational_auc']:.6f}\n", encoding="utf-8")
 
     LOGGER.info("Transit training complete. test_auc=%.4f stress_auc=%.4f", test_auc, stress_auc)
 

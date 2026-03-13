@@ -80,12 +80,24 @@ def cluster_latent_space(
             # HDBSCAN can assign `-1` for points in low-density regions.
             # In astronomical morphology studies, this often captures rare or
             # ambiguous systems rather than an algorithmic failure.
+            if np.all(labels == -1):
+                from sklearn.cluster import KMeans
+
+                clusterer = KMeans(n_clusters=n_clusters, random_state=random_state, n_init="auto")
+                labels = clusterer.fit_predict(latent_vectors)
+                return labels, clusterer, "hdbscan_all_noise_fallback_kmeans"
             return labels, clusterer, "hdbscan"
         except Exception:
             from sklearn.cluster import DBSCAN
 
             clusterer = DBSCAN(eps=0.7, min_samples=max(5, min_cluster_size // 2))
             labels = clusterer.fit_predict(latent_vectors)
+            if np.all(labels == -1):
+                from sklearn.cluster import KMeans
+
+                clusterer = KMeans(n_clusters=n_clusters, random_state=random_state, n_init="auto")
+                labels = clusterer.fit_predict(latent_vectors)
+                return labels, clusterer, "dbscan_all_noise_fallback_kmeans"
             return labels, clusterer, "dbscan_fallback"
 
     if method == "kmeans":

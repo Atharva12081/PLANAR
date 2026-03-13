@@ -1,0 +1,3 @@
+transit:
+  observational_dir: data/observational
+  observational_require_labels: true

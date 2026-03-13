@@ -36,6 +36,7 @@ class AutoencoderConfig:
     """Autoencoder training configuration."""
 
     enabled: bool = True
+    use_pretrained: bool = False
     out_subdir: str = "autoencoder"
     crop_size: int = 512
     latent_dim: int = 64
@@ -71,6 +72,7 @@ class TransitConfig:
     """Transit classifier training configuration."""
 
     enabled: bool = True
+    use_pretrained: bool = False
     out_subdir: str = "transit"
     samples: int = 4000
     num_points: int = 500
@@ -82,6 +84,8 @@ class TransitConfig:
     patience: int = 7
     stress_eval_size: int = 2000
     stress_seed: int = 4242
+    observational_dir: str | None = None
+    observational_require_labels: bool = True
 
 
 @dataclass

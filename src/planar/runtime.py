@@ -8,7 +8,6 @@ import random
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 
 
 def configure_runtime_environment(cache_root: str | Path = ".runtime_cache") -> None:
@@ -23,6 +22,9 @@ def configure_runtime_environment(cache_root: str | Path = ".runtime_cache") -> 
     os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "1")
     os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
     os.environ.setdefault("LOKY_MAX_CPU_COUNT", "1")
+    # Avoid OpenMP shared-memory issues in constrained environments.
+    os.environ.setdefault("KMP_DISABLE_MMAP", "1")
+    os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
     cache_dir = Path(cache_root)
     mpl_dir = cache_dir / "matplotlib"
@@ -57,6 +59,8 @@ def set_seed(seed: int) -> None:
         seed: Seed integer.
     """
     random.seed(seed)
+    import numpy as np
+
     np.random.seed(seed)
 
     try:

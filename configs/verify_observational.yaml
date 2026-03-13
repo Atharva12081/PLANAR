@@ -1,0 +1,9 @@
+autoencoder:
+  enabled: true
+  use_pretrained: true
+
+transit:
+  enabled: true
+  use_pretrained: true
+  observational_dir: data/observational
+  observational_require_labels: true

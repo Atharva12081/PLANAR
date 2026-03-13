@@ -1,0 +1,7 @@
+autoencoder:
+  enabled: true
+  use_pretrained: true
+
+transit:
+  enabled: true
+  use_pretrained: true

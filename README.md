@@ -12,6 +12,89 @@ brightness scaling or orientation.
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 ![Install](https://img.shields.io/badge/install-pip%20install%20planar-2ea44f)
 
+## Reviewer Quickstart
+
+This repository implements the EXXA GSoC Test pipeline for protoplanetary disk analysis.
+
+### 1. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Run the full verification pipeline
+
+```bash
+python -m planar run --config configs/verify.yaml
+```
+
+Runtime: ~2 minutes
+
+Outputs will appear in:
+
+```
+artifacts/
+reports/PLANAR_REPORT.md
+```
+
+### 3. Run observational verification
+
+```bash
+python -m planar run --config configs/verify_observational.yaml
+```
+
+### 4. Test with new FITS data
+
+```bash
+python scripts/generate_synthetic_fits.py --out-dir data/withheld_fits --n-samples 10
+python -m planar infer --config configs/verify.yaml --data-dir data/withheld_fits
+```
+
+### 5. Notebook version
+
+Open:
+
+```
+notebooks/EXXA_test_submission.ipynb
+```
+
+Or view the executed notebook:
+
+```
+artifacts/notebooks/EXXA_test_submission.executed.ipynb
+```
+
+## Pipeline Overview
+
+FITS Data
+  |
+  v
+Preprocessing
+  |
+  v
+Autoencoder -> Latent Space
+  |
+  v
+Clustering (HDBSCAN / KMeans fallback)
+  |
+  v
+Cluster Visualization
+  |
+  v
+Transit Simulation
+  |
+  v
+Transit Classifier
+  |
+  v
+ROC / AUC
+
+## Latent Space Representation
+
+![Latent space clusters](artifacts/latent_space_clusters.png)
+
+Figure — Latent space clustering of protoplanetary disk images. The convolutional autoencoder encodes each FITS disk image into a latent vector. A 2-D PCA projection of these latent vectors is shown, with colors representing cluster assignments produced by HDBSCAN (with KMeans fallback). Clusters correspond to distinct disk morphologies such as rings, gaps, and potential planet-induced structures.
+
 ## Key Features
 
 - End-to-end pipeline for image representation learning, latent clustering, and transit classification.

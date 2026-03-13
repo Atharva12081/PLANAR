@@ -3,18 +3,34 @@
 from __future__ import annotations
 
 from typing import Any
+import subprocess
+import sys
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 
-try:
-    from pytorch_msssim import ms_ssim  # type: ignore
+def _ensure_msssim() -> tuple[object | None, bool]:
+    """Ensure pytorch-msssim is available, attempting install if missing."""
+    try:
+        from pytorch_msssim import ms_ssim  # type: ignore
 
-    HAS_MS_SSIM = True
-except Exception:
-    ms_ssim = None
-    HAS_MS_SSIM = False
+        return ms_ssim, True
+    except Exception:
+        try:
+            subprocess.check_call(
+                [sys.executable, "-m", "pip", "install", "pytorch-msssim==1.0.0"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            from pytorch_msssim import ms_ssim  # type: ignore
+
+            return ms_ssim, True
+        except Exception:
+            return None, False
+
+
+ms_ssim, HAS_MS_SSIM = _ensure_msssim()
 
 
 def reconstruction_components(

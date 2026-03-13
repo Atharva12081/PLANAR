@@ -39,6 +39,11 @@ def run_full_pipeline(config: PlanarConfig, data_dir_override: str | Path | None
     if config.autoencoder.enabled:
         ae_artifacts = run_autoencoder_pipeline(config)
         model_path = ae_artifacts.checkpoint_path
+    else:
+        # Use existing checkpoint when skipping training.
+        checkpoint_path = Path(config.paths.artifacts_dir) / config.autoencoder.out_subdir / "autoencoder.pth"
+        if checkpoint_path.exists():
+            model_path = checkpoint_path
 
     if config.clustering.enabled:
         run_clustering_pipeline(config, model_path=model_path)

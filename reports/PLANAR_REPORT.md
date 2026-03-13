@@ -1,9 +1,6 @@
 # PLANAR Run Report
 
-Generated: 2026-03-12 22:28 UTC
-
-Artifacts + pretrained weights:
-https://drive.google.com/drive/u/0/folders/1x3jiMVj2Iyeu9quEI53SVg6-EF7tMFqx
+Generated: 2026-03-13 10:16 UTC
 
 ## Autoencoder
 - Train size: 120
@@ -11,26 +8,29 @@ https://drive.google.com/drive/u/0/folders/1x3jiMVj2Iyeu9quEI53SVg6-EF7tMFqx
 - Best val loss: 0.0376
 
 ## Clustering
-- Method: hdbscan
+- Method: hdbscan_all_noise_fallback_kmeans
 - Reducer: pca
-- Silhouette: 0.6976
-- Noise fraction: 0.0467
-- Stability ARI mean: 0.9905
-- Brightness eta^2: 0.5822
-- Orientation eta^2: 0.0096
+- Silhouette: 0.3363
+- Noise fraction: 0.0000
+- Stability ARI mean: 0.7652
+- Brightness eta^2: 0.6921
+- Orientation eta^2: 0.6480
 
 ### Morphology Snapshot
 - Cluster 0: smooth disk (rings=1, gaps=0)
 - Cluster 1: smooth disk (rings=1, gaps=0)
+- Cluster 2: smooth disk (rings=0, gaps=0)
+- Cluster 3: smooth disk (rings=1, gaps=0)
+- Cluster 4: smooth disk (rings=1, gaps=0)
 
 ## Transit
-- Best val AUC: 0.9994
+- Best val AUC: n/a
 - Test AUC: 0.9962
 - Stress AUC: 0.9612
 
 ## Inference
 - Loaded images: 150
-- Method: hdbscan
+- Method: hdbscan_all_noise_fallback_kmeans
 
 ## Reproducibility Sweep
 - Seeds: [42, 43, 44]
