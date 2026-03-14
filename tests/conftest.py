@@ -1,4 +1,4 @@
-"""Pytest configuration for PLANAR."""
+"""Pytest configuration to ensure local package resolution."""
 
 from __future__ import annotations
 
