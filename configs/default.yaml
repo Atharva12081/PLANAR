@@ -36,6 +36,7 @@ clustering:
   n_clusters: 6
   batch_size: 16
   use_radial_average: true
+  compare_radial_average: false
   stability_runs: 7
   stability_noise_std: 0.01
 

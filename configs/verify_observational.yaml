@@ -7,3 +7,6 @@ transit:
   use_pretrained: true
   observational_dir: data/observational
   observational_require_labels: true
+
+clustering:
+  compare_radial_average: true

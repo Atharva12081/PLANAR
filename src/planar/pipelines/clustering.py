@@ -291,6 +291,41 @@ def run_clustering_pipeline(
         "stability_summary": stability,
         "negative_controls": negative_controls,
     }
+
+    if config.clustering.compare_radial_average:
+        compare_use_radial = not config.clustering.use_radial_average
+        processed_cmp = preprocess_dataset(
+            images,
+            crop_size=crop_size,
+            use_radial_average=compare_use_radial,
+        )
+        axis_ratio_cmp = axis_ratio_proxies(processed_cmp)
+        brightness_cmp = brightness_proxy(images, crop_size=crop_size)
+        latent_cmp = _batched_encode(model, processed_cmp, batch_size=config.clustering.batch_size, device=device)
+        latent_cmp_for = latent_cmp
+        debias_cmp = None
+        if config.clustering.debias_nuisance_latent:
+            latent_cmp_for, debias_cmp = _debias_latent_vectors(
+                latent_vectors=latent_cmp,
+                brightness=brightness_cmp,
+                axis_ratio=axis_ratio_cmp,
+            )
+        labels_cmp, _, method_cmp = cluster_latent_space(
+            latent_cmp_for,
+            method=config.clustering.method,
+            min_cluster_size=config.clustering.min_cluster_size,
+            n_clusters=config.clustering.n_clusters,
+            random_state=config.project.seed,
+        )
+        metrics_cmp = clustering_quality_scores(latent_cmp_for, labels_cmp)
+        bias_cmp = cluster_bias_summary(labels_cmp, brightness=brightness_cmp, axis_ratio=axis_ratio_cmp)
+        summary["radial_average_ablation"] = {
+            "use_radial_average": compare_use_radial,
+            "method_used": method_cmp,
+            "metrics": metrics_cmp,
+            "bias_summary": bias_cmp,
+            "debias_diagnostics": debias_cmp,
+        }
     summary_path = out_dir / "clustering_summary.json"
     save_json(summary, summary_path)
 

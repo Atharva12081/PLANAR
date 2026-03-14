@@ -5,3 +5,6 @@ autoencoder:
 transit:
   enabled: true
   use_pretrained: true
+
+clustering:
+  compare_radial_average: true

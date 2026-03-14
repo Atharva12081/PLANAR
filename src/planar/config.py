@@ -62,6 +62,7 @@ class ClusteringConfig:
     n_clusters: int = 6
     batch_size: int = 16
     use_radial_average: bool = False
+    compare_radial_average: bool = False
     debias_nuisance_latent: bool = False
     stability_runs: int = 5
     stability_noise_std: float = 0.01

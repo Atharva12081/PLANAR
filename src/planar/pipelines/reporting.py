@@ -86,6 +86,15 @@ def generate_markdown_report(config: PlanarConfig, output_path: str | Path | Non
     lines.append(f"- Stability ARI mean: {_fmt(cs.get('ari_mean'))}")
     lines.append(f"- Brightness eta^2: {_fmt(cb.get('brightness_eta_squared'))}")
     lines.append(f"- Orientation eta^2: {_fmt(cb.get('axis_ratio_eta_squared'))}")
+    ablation = cl.get("radial_average_ablation") if isinstance(cl, dict) else None
+    if isinstance(ablation, dict):
+        ab_metrics = ablation.get("metrics", {})
+        ab_bias = ablation.get("bias_summary", {})
+        lines.append(
+            f"- Radial avg compare (use_radial_average={ablation.get('use_radial_average')}): "
+            f"silhouette={_fmt(ab_metrics.get('silhouette'))}, "
+            f"orientation eta^2={_fmt(ab_bias.get('axis_ratio_eta_squared'))}"
+        )
 
     clusters = ci.get("clusters") if isinstance(ci, dict) else None
     if isinstance(clusters, list) and clusters:
