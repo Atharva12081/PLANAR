@@ -89,6 +89,10 @@ Transit Classifier
   v
 ROC / AUC
 
+## Alignment With Terry et al. (2022)
+
+This pipeline is aligned with Terry et al. (2022), which demonstrates that machine learning on synthetic ALMA-like observations can detect planet-induced disk structure and transfer to real data. Our approach likewise trains on synthetic continuum FITS observations, emphasizes morphology-driven clustering, and includes orientation/brightness bias checks plus observational evaluation to mirror the synthetic-to-real validation strategy.
+
 ## Latent Space Representation
 
 ![Latent space clusters](artifacts/latent_space_clusters.png)
