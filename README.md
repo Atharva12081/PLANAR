@@ -89,6 +89,11 @@ Transit Classifier
   v
 ROC / AUC
 
+FITS cube handling note:
+- Extract **layer 0** to preserve `(600, 600)` morphology.
+- Avoid averaging over spatial axes; that collapses structure.
+- When cubes include extra non-spatial axes, use a controlled `squeeze` or `data[0]`.
+
 ## Alignment With Terry et al. (2022)
 
 This pipeline is aligned with Terry et al. (2022), which demonstrates that machine learning on synthetic ALMA-like observations can detect planet-induced disk structure and transfer to real data. Our approach likewise trains on synthetic continuum FITS observations, emphasizes morphology-driven clustering, and includes orientation/brightness bias checks plus observational evaluation to mirror the synthetic-to-real validation strategy.
