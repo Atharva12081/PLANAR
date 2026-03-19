@@ -1,7 +1,11 @@
 # Reports
 
-This directory stores generated markdown summaries from completed runs.
+This directory stores reviewer-facing markdown summaries from completed runs.
 
-Default output path:
+Canonical report:
 
 - `reports/PLANAR_REPORT.md`
+
+For multi-seed evidence, use:
+
+- `artifacts/reproducibility/reproducibility_summary.json`

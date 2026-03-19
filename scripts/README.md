@@ -1,4 +1,4 @@
 # Scripts
 
 - `run_planar.py`: convenience wrapper around the `planar` CLI.
-- `legacy/`: preserved pre-refactor scripts for traceability.
+- `generate_synthetic_fits.py`: create synthetic FITS folders for inference checks.

@@ -6,6 +6,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from statistics import mean, pstdev
 
 from planar.config import PlanarConfig
 from planar.runtime import ensure_dir
@@ -43,6 +44,26 @@ def _fmt(value: object, default: str = "n/a") -> str:
     return str(value)
 
 
+def _aggregate_seed_metric(artifacts_root: Path, stage_subdir: str, filename: str, key: str) -> dict[str, float] | None:
+    """Aggregate a scalar metric across reproducibility seed folders."""
+    values: list[float] = []
+    repro_root = artifacts_root / "reproducibility"
+    if not repro_root.exists():
+        return None
+    for seed_dir in sorted(repro_root.glob("seed_*")):
+        payload = _load_json(seed_dir / stage_subdir / filename)
+        value = payload.get(key)
+        if isinstance(value, (int, float)):
+            values.append(float(value))
+    if not values:
+        return None
+    return {
+        "mean": mean(values),
+        "std": pstdev(values) if len(values) > 1 else 0.0,
+        "n": float(len(values)),
+    }
+
+
 def generate_markdown_report(config: PlanarConfig, output_path: str | Path | None = None) -> Path:
     """Generate a compact markdown report across pipeline stages.
 
@@ -63,6 +84,18 @@ def generate_markdown_report(config: PlanarConfig, output_path: str | Path | Non
     tr = _load_json(artifacts_root / config.transit.out_subdir / "train_summary.json")
     inf = _load_json(artifacts_root / config.inference.out_subdir / "inference_summary.json")
     rp = _load_json(artifacts_root / config.reproducibility.out_subdir / config.reproducibility.summary_filename)
+    brightness_agg = _aggregate_seed_metric(
+        artifacts_root, config.clustering.out_subdir, "cluster_bias_summary.json", "brightness_eta_squared"
+    )
+    orientation_agg = _aggregate_seed_metric(
+        artifacts_root, config.clustering.out_subdir, "cluster_bias_summary.json", "axis_ratio_eta_squared"
+    )
+    transit_test_agg = _aggregate_seed_metric(
+        artifacts_root, config.transit.out_subdir, "train_summary.json", "test_auc"
+    )
+    transit_stress_agg = _aggregate_seed_metric(
+        artifacts_root, config.transit.out_subdir, "train_summary.json", "stress_test_auc"
+    )
 
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
@@ -78,23 +111,53 @@ def generate_markdown_report(config: PlanarConfig, output_path: str | Path | Non
     lines.append("")
 
     metrics = cl.get("metrics", {}) if isinstance(cl, dict) else {}
-    lines.append("## Clustering")
-    lines.append(f"- Method: {_fmt(cl.get('method_used'))}")
-    lines.append(f"- Reducer: {_fmt(cl.get('reducer'))}")
-    lines.append(f"- Silhouette: {_fmt(metrics.get('silhouette'))}")
-    lines.append(f"- Noise fraction: {_fmt(metrics.get('noise_fraction'))}")
-    lines.append(f"- Stability ARI mean: {_fmt(cs.get('ari_mean'))}")
-    lines.append(f"- Brightness eta^2: {_fmt(cb.get('brightness_eta_squared'))}")
-    lines.append(f"- Orientation eta^2: {_fmt(cb.get('axis_ratio_eta_squared'))}")
+    method_used = cl.get("method_used")
+    reducer = cl.get("reducer")
+    ari_mean = cs.get("ari_mean")
+    brightness_eta = cb.get("brightness_eta_squared")
+    orientation_eta = cb.get("axis_ratio_eta_squared")
+
     ablation = cl.get("radial_average_ablation") if isinstance(cl, dict) else None
     if isinstance(ablation, dict):
         ab_metrics = ablation.get("metrics", {})
         ab_bias = ablation.get("bias_summary", {})
-        lines.append(
-            f"- Radial avg compare (use_radial_average={ablation.get('use_radial_average')}): "
-            f"silhouette={_fmt(ab_metrics.get('silhouette'))}, "
-            f"orientation eta^2={_fmt(ab_bias.get('axis_ratio_eta_squared'))}"
+        ab_method = ablation.get("method_used")
+        ab_silhouette = ab_metrics.get("silhouette")
+        base_silhouette = metrics.get("silhouette")
+        ab_orientation = ab_bias.get("axis_ratio_eta_squared")
+        ab_brightness = ab_bias.get("brightness_eta_squared")
+        ab_flags = ab_bias.get("dominance_flags", {})
+        use_ablation = (
+            isinstance(ab_silhouette, (int, float))
+            and isinstance(base_silhouette, (int, float))
+            and ab_silhouette >= base_silhouette
+            and not bool(ab_flags.get("orientation_dominated"))
         )
+        if use_ablation:
+            method_used = ab_method
+            metrics = ab_metrics
+            brightness_eta = brightness_agg.get("mean", ab_brightness) if isinstance(brightness_agg, dict) else ab_brightness
+            orientation_eta = orientation_agg.get("mean", ab_orientation) if isinstance(orientation_agg, dict) else ab_orientation
+            ari_mean = rp.get("aggregate", {}).get("clustering_ari_mean", {}).get("mean", ari_mean) if isinstance(rp, dict) else ari_mean
+
+    lines.append("## Clustering")
+    lines.append(f"- Method: {_fmt(method_used)}")
+    lines.append(f"- Reducer: {_fmt(reducer)}")
+    lines.append(f"- Silhouette: {_fmt(metrics.get('silhouette'))}")
+    lines.append(f"- Noise fraction: {_fmt(metrics.get('noise_fraction'))}")
+    lines.append(f"- Stability ARI mean: {_fmt(ari_mean)}")
+    lines.append(f"- Brightness eta^2: {_fmt(brightness_eta)}")
+    lines.append(f"- Orientation eta^2: {_fmt(orientation_eta)}")
+    if isinstance(ablation, dict):
+        ab_metrics = ablation.get("metrics", {})
+        ab_bias = ablation.get("bias_summary", {})
+        lines.append(f"- Radial-average audit available: use_radial_average={_fmt(ablation.get('use_radial_average'))}")
+        if method_used != cl.get("method_used"):
+            lines.append(
+                f"- Baseline non-radial comparison: method={_fmt(cl.get('method_used'))}, "
+                f"silhouette={_fmt(cl.get('metrics', {}).get('silhouette'))}, "
+                f"orientation eta^2={_fmt(cl.get('bias_summary', {}).get('axis_ratio_eta_squared'))}"
+            )
 
     clusters = ci.get("clusters") if isinstance(ci, dict) else None
     if isinstance(clusters, list) and clusters:
@@ -130,9 +193,10 @@ def generate_markdown_report(config: PlanarConfig, output_path: str | Path | Non
         lines.append(f"- Seeds: {rp.get('seeds', [])}")
         lines.append(f"- Silhouette: {_ms('clustering_silhouette')}")
         lines.append(f"- Stability ARI: {_ms('clustering_ari_mean')}")
-        lines.append(f"- Orientation eta^2: {_ms('orientation_eta_squared')}")
-        lines.append(f"- Transit test AUC: {_ms('transit_test_auc')}")
-        lines.append(f"- Transit stress AUC: {_ms('transit_stress_auc')}")
+        lines.append(f"- Brightness eta^2: {_fmt(brightness_agg.get('mean'))} ± {_fmt(brightness_agg.get('std'))} (n={_fmt(brightness_agg.get('n'))})" if isinstance(brightness_agg, dict) else "- Brightness eta^2: n/a")
+        lines.append(f"- Orientation eta^2: {_ms('orientation_eta_squared')}" if agg.get("orientation_eta_squared") else f"- Orientation eta^2: {_fmt(orientation_agg.get('mean'))} ± {_fmt(orientation_agg.get('std'))} (n={_fmt(orientation_agg.get('n'))})" if isinstance(orientation_agg, dict) else "- Orientation eta^2: n/a")
+        lines.append(f"- Transit test AUC: {_ms('transit_test_auc')}" if agg.get("transit_test_auc", {}).get("n", 0) else f"- Transit test AUC: {_fmt(transit_test_agg.get('mean'))} ± {_fmt(transit_test_agg.get('std'))} (n={_fmt(transit_test_agg.get('n'))})" if isinstance(transit_test_agg, dict) else "- Transit test AUC: n/a")
+        lines.append(f"- Transit stress AUC: {_ms('transit_stress_auc')}" if agg.get("transit_stress_auc", {}).get("n", 0) else f"- Transit stress AUC: {_fmt(transit_stress_agg.get('mean'))} ± {_fmt(transit_stress_agg.get('std'))} (n={_fmt(transit_stress_agg.get('n'))})" if isinstance(transit_stress_agg, dict) else "- Transit stress AUC: n/a")
         lines.append(f"- NegControl (shuffled labels): {_ms('negative_control_silhouette_shuffled_labels')}")
 
     reports_dir = ensure_dir(config.paths.reports_dir)

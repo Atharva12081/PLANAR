@@ -210,19 +210,20 @@ planar infer --config configs/default.yaml --data-dir path/to/fits
 
 ## Benchmark Snapshot (Current Artifacts)
 
-Metrics below are from the latest end-to-end run generated on March 13, 2026:
+Metrics below are from the reviewer-facing radial/HDBSCAN configuration and the 3-seed reproducibility sweep generated in March 2026:
 
 | Task | Configuration | Result |
 |---|---|---|
-| Clustering (full run) | Radial preprocessing + HDBSCAN + PCA | Silhouette `0.6976` |
-| Clustering stability | 7 perturbation reruns | ARI mean `0.9905` |
-| Bias audit | Brightness `eta^2` / Orientation `eta^2` | `0.5822` / `0.0096` |
-| HDBSCAN behavior | Same run | Noise fraction `0.0467` |
-| Transit classifier | Test split AUC | `0.9962` |
-| Transit stress test | Red noise + variability + missing segments | AUC `0.9612` |
-| Autoencoder | Best val loss (MSE + MS-SSIM objective) | `0.0376` |
+| Clustering (recommended run) | Radial preprocessing + HDBSCAN + PCA | Silhouette `0.6976` |
+| Clustering reproducibility | 3-seed sweep | Silhouette `0.5275 ± 0.0075` |
+| Clustering stability | 3-seed sweep | ARI mean `0.9482 ± 0.0285` |
+| Bias audit | Brightness `eta^2` / Orientation `eta^2` across seeds | `0.0524 ± 0.0394` / `0.0169 ± 0.0154` |
+| HDBSCAN behavior | Recommended radial run | Noise fraction `0.0467` |
+| Transit classifier | 3-seed sweep mean test AUC | `0.9984` |
+| Transit stress test | 3-seed sweep mean stress AUC | `0.9610` |
+| Autoencoder | 3-seed sweep best val loss | `0.0379 ± 0.0013` |
 
-Artifact sources: `artifacts/autoencoder/`, `artifacts/clustering/`, `artifacts/transit/`, `reports/PLANAR_REPORT.md`.
+Artifact sources: `artifacts/reproducibility/`, `artifacts/clustering/`, `artifacts/transit/`, `reports/PLANAR_REPORT.md`.
 
 Pretrained checkpoint (generated during the run):
 `artifacts/autoencoder/autoencoder.pth`

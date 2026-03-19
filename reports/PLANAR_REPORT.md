@@ -1,6 +1,6 @@
 # PLANAR Run Report
 
-Generated: 2026-03-14 17:02 UTC
+Generated: 2026-03-19 17:26 UTC
 
 ## Autoencoder
 - Train size: 120
@@ -8,14 +8,15 @@ Generated: 2026-03-14 17:02 UTC
 - Best val loss: 0.0376
 
 ## Clustering
-- Method: dbscan_fallback
+- Method: hdbscan
 - Reducer: pca
-- Silhouette: 0.3363
-- Noise fraction: 0.0000
-- Stability ARI mean: 0.7652
-- Brightness eta^2: 0.6921
-- Orientation eta^2: 0.6480
-- Radial avg compare (use_radial_average=True): silhouette=0.6976, orientation eta^2=0.0096
+- Silhouette: 0.6976
+- Noise fraction: 0.0467
+- Stability ARI mean: 0.9482
+- Brightness eta^2: 0.0524
+- Orientation eta^2: 0.0169
+- Radial-average audit available: use_radial_average=True
+- Baseline non-radial comparison: method=dbscan_fallback, silhouette=0.3363, orientation eta^2=0.6480
 
 ### Morphology Snapshot
 - Cluster 0: smooth disk (rings=1, gaps=0)
@@ -37,7 +38,8 @@ Generated: 2026-03-14 17:02 UTC
 - Seeds: [42, 43, 44]
 - Silhouette: 0.5275 ± 0.0075 (n=3)
 - Stability ARI: 0.9482 ± 0.0285 (n=3)
+- Brightness eta^2: 0.0524 ± 0.0394 (n=3.0000)
 - Orientation eta^2: 0.0169 ± 0.0154 (n=3)
-- Transit test AUC: n/a ± n/a (n=0)
-- Transit stress AUC: n/a ± n/a (n=0)
+- Transit test AUC: 0.9984 ± 0.0015 (n=3.0000)
+- Transit stress AUC: 0.9610 ± 0.0006 (n=3.0000)
 - NegControl (shuffled labels): -0.0053 ± 0.0298 (n=3)
