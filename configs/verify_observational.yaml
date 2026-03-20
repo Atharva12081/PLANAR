@@ -9,4 +9,8 @@ transit:
   observational_require_labels: true
 
 clustering:
+  use_radial_average: true
   compare_radial_average: true
+
+inference:
+  use_radial_average: true

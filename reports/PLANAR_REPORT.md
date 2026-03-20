@@ -1,6 +1,6 @@
 # PLANAR Run Report
 
-Generated: 2026-03-19 17:26 UTC
+Generated: 2026-03-20 11:48 UTC
 
 ## Autoencoder
 - Train size: 120
@@ -12,18 +12,14 @@ Generated: 2026-03-19 17:26 UTC
 - Reducer: pca
 - Silhouette: 0.6976
 - Noise fraction: 0.0467
-- Stability ARI mean: 0.9482
-- Brightness eta^2: 0.0524
-- Orientation eta^2: 0.0169
-- Radial-average audit available: use_radial_average=True
-- Baseline non-radial comparison: method=dbscan_fallback, silhouette=0.3363, orientation eta^2=0.6480
+- Stability ARI mean (3-seed aggregate): 0.9482
+- Brightness eta^2 (3-seed aggregate): 0.0524
+- Orientation eta^2 (3-seed aggregate): 0.0169
+- Radial-average audit available: use_radial_average=False
 
 ### Morphology Snapshot
 - Cluster 0: smooth disk (rings=1, gaps=0)
 - Cluster 1: smooth disk (rings=1, gaps=0)
-- Cluster 2: smooth disk (rings=0, gaps=0)
-- Cluster 3: smooth disk (rings=1, gaps=0)
-- Cluster 4: smooth disk (rings=1, gaps=0)
 
 ## Transit
 - Best val AUC: n/a
@@ -32,7 +28,7 @@ Generated: 2026-03-19 17:26 UTC
 
 ## Inference
 - Loaded images: 150
-- Method: dbscan_fallback
+- Method: hdbscan
 
 ## Reproducibility Sweep
 - Seeds: [42, 43, 44]

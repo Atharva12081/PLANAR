@@ -7,4 +7,8 @@ transit:
   use_pretrained: true
 
 clustering:
+  use_radial_average: true
   compare_radial_average: true
+
+inference:
+  use_radial_average: true

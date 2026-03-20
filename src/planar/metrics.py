@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 import subprocess
 import sys
+import warnings
 
 import numpy as np
 import torch
@@ -100,7 +101,10 @@ def clustering_quality_scores(latent_vectors: np.ndarray, labels: np.ndarray) ->
 
     if len(valid) >= 2:
         mask = labels != -1
-        scores["silhouette"] = float(silhouette_score(latent_vectors[mask], labels[mask]))
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)
+            warnings.simplefilter("ignore", RuntimeWarning)
+            scores["silhouette"] = float(silhouette_score(latent_vectors[mask], labels[mask]))
     else:
         scores["silhouette"] = None
 

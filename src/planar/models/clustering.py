@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 
 
@@ -42,7 +44,10 @@ def reduce_dim(
     from sklearn.decomposition import PCA
 
     reducer = PCA(n_components=n_components)
-    embedding = reducer.fit_transform(latent_vectors)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", FutureWarning)
+        warnings.simplefilter("ignore", RuntimeWarning)
+        embedding = reducer.fit_transform(latent_vectors)
     name = "pca" if method == "pca" else "pca_fallback"
     return embedding, reducer, name
 
@@ -76,7 +81,10 @@ def cluster_latent_space(
             import hdbscan
 
             clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size)
-            labels = clusterer.fit_predict(latent_vectors)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", FutureWarning)
+                warnings.simplefilter("ignore", RuntimeWarning)
+                labels = clusterer.fit_predict(latent_vectors)
             # HDBSCAN can assign `-1` for points in low-density regions.
             # In astronomical morphology studies, this often captures rare or
             # ambiguous systems rather than an algorithmic failure.
@@ -84,19 +92,28 @@ def cluster_latent_space(
                 from sklearn.cluster import KMeans
 
                 clusterer = KMeans(n_clusters=n_clusters, random_state=random_state, n_init="auto")
-                labels = clusterer.fit_predict(latent_vectors)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", FutureWarning)
+                    warnings.simplefilter("ignore", RuntimeWarning)
+                    labels = clusterer.fit_predict(latent_vectors)
                 return labels, clusterer, "dbscan_fallback"
             return labels, clusterer, "hdbscan"
         except Exception:
             from sklearn.cluster import DBSCAN
 
             clusterer = DBSCAN(eps=0.7, min_samples=max(5, min_cluster_size // 2))
-            labels = clusterer.fit_predict(latent_vectors)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", FutureWarning)
+                warnings.simplefilter("ignore", RuntimeWarning)
+                labels = clusterer.fit_predict(latent_vectors)
             if np.all(labels == -1):
                 from sklearn.cluster import KMeans
 
                 clusterer = KMeans(n_clusters=n_clusters, random_state=random_state, n_init="auto")
-                labels = clusterer.fit_predict(latent_vectors)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", FutureWarning)
+                    warnings.simplefilter("ignore", RuntimeWarning)
+                    labels = clusterer.fit_predict(latent_vectors)
                 return labels, clusterer, "dbscan_fallback"
             return labels, clusterer, "dbscan_fallback"
 
@@ -104,7 +121,10 @@ def cluster_latent_space(
         from sklearn.cluster import KMeans
 
         clusterer = KMeans(n_clusters=n_clusters, random_state=random_state, n_init="auto")
-        labels = clusterer.fit_predict(latent_vectors)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)
+            warnings.simplefilter("ignore", RuntimeWarning)
+            labels = clusterer.fit_predict(latent_vectors)
         return labels, clusterer, "kmeans"
 
     if method in {"gmm", "gaussian_mixture", "gaussian-mixture"}:
@@ -117,7 +137,10 @@ def cluster_latent_space(
                     random_state=random_state,
                     reg_covar=reg_covar,
                 )
-                labels = clusterer.fit_predict(latent_vectors)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", FutureWarning)
+                    warnings.simplefilter("ignore", RuntimeWarning)
+                    labels = clusterer.fit_predict(latent_vectors)
                 tag = "gmm" if reg_covar == 1e-6 else f"gmm_reg_{reg_covar:g}"
                 return labels, clusterer, tag
             except Exception:
@@ -126,7 +149,10 @@ def cluster_latent_space(
         from sklearn.cluster import KMeans
 
         clusterer = KMeans(n_clusters=n_clusters, random_state=random_state, n_init="auto")
-        labels = clusterer.fit_predict(latent_vectors)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)
+            warnings.simplefilter("ignore", RuntimeWarning)
+            labels = clusterer.fit_predict(latent_vectors)
         return labels, clusterer, "gmm_fallback_kmeans"
 
     raise ValueError(f"Unsupported clustering method: {method}")

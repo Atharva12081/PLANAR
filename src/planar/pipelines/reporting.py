@@ -145,9 +145,18 @@ def generate_markdown_report(config: PlanarConfig, output_path: str | Path | Non
     lines.append(f"- Reducer: {_fmt(reducer)}")
     lines.append(f"- Silhouette: {_fmt(metrics.get('silhouette'))}")
     lines.append(f"- Noise fraction: {_fmt(metrics.get('noise_fraction'))}")
-    lines.append(f"- Stability ARI mean: {_fmt(ari_mean)}")
-    lines.append(f"- Brightness eta^2: {_fmt(brightness_eta)}")
-    lines.append(f"- Orientation eta^2: {_fmt(orientation_eta)}")
+    if isinstance(rp.get("aggregate", {}).get("clustering_ari_mean"), dict):
+        lines.append(f"- Stability ARI mean (3-seed aggregate): {_fmt(rp['aggregate']['clustering_ari_mean'].get('mean'))}")
+    else:
+        lines.append(f"- Stability ARI mean: {_fmt(ari_mean)}")
+    if isinstance(brightness_agg, dict):
+        lines.append(f"- Brightness eta^2 (3-seed aggregate): {_fmt(brightness_agg.get('mean'))}")
+    else:
+        lines.append(f"- Brightness eta^2: {_fmt(brightness_eta)}")
+    if isinstance(orientation_agg, dict):
+        lines.append(f"- Orientation eta^2 (3-seed aggregate): {_fmt(orientation_agg.get('mean'))}")
+    else:
+        lines.append(f"- Orientation eta^2: {_fmt(orientation_eta)}")
     if isinstance(ablation, dict):
         ab_metrics = ablation.get("metrics", {})
         ab_bias = ablation.get("bias_summary", {})
